@@ -8,7 +8,7 @@ This repository is being built one issue at a time. Issue #1 creates the project
 
 - Backend: .NET 8, ASP.NET Core Web API
 - Frontend: React, TypeScript, Vite
-- Future data layer: Entity Framework Core with SQL Server
+- Data layer: Entity Framework Core with SQL Server
 
 ## Project Structure
 
@@ -18,6 +18,7 @@ SmartFileImport/
 |   |-- Configuration/
 |   |-- Controllers/
 |   |-- Data/
+|   |   `-- ApplicationDbContext.cs
 |   |-- Helpers/
 |   |-- Models/
 |   |-- Services/
@@ -46,6 +47,20 @@ The import folders are created at the repository root:
 - `Files/Error`
 
 The matching configuration lives in `Backend/appsettings.json`.
+
+## Database Configuration
+
+The backend is configured for SQL Server through Entity Framework Core.
+
+The default connection string is stored in `Backend/appsettings.json`:
+
+```json
+"ConnectionStrings": {
+  "DefaultConnection": "Server=(localdb)\\MSSQLLocalDB;Database=SmartFileImportDb;Trusted_Connection=True;TrustServerCertificate=True"
+}
+```
+
+Entities and migrations are intentionally not added yet. They belong to Issues #3 and #4.
 
 ## Run The Backend
 
@@ -78,10 +93,15 @@ Completed in Issue #1:
 - Added `.gitignore`.
 - Added initial setup documentation.
 
+Completed in Issue #2:
+
+- Added Entity Framework Core SQL Server packages.
+- Created `ApplicationDbContext`.
+- Added the SQL Server connection string.
+- Registered the DbContext in the backend dependency injection container.
+
 Not included yet:
 
-- Entity Framework Core setup
-- SQL Server connection
 - Employee and import history entities
 - File readers
 - Background worker
