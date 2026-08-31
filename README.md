@@ -24,9 +24,13 @@ SmartFileImport/
 |   |   |-- Employee.cs
 |   |   `-- ImportHistory.cs
 |   |-- Services/
+|   |   |-- CsvFileReader.cs
+|   |   `-- ICsvFileReader.cs
 |   |-- Workers/
 |   |-- Program.cs
 |   `-- SmartFileImport.Api.csproj
+|-- Backend.Tests/
+|   `-- CsvFileReaderTests.cs
 |-- Frontend/
 |   |-- src/
 |   |-- index.html
@@ -78,6 +82,17 @@ Verify tables:
 sqlcmd -S "(localdb)\MSSQLLocalDB" -d SmartFileImportDb -Q "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME"
 ```
 
+## CSV Format
+
+CSV files must include these headers:
+
+```csv
+Name,Email,Department,Salary
+Ahmed Shablakh,ahmed@example.com,Engineering,4500.50
+```
+
+The CSV reader maps rows to `Employee` objects. Full data validation is intentionally left for Issue #7.
+
 ## Run The Backend
 
 ```powershell
@@ -97,6 +112,12 @@ GET /api/health
 cd Frontend
 npm install
 npm run dev
+```
+
+## Run Tests
+
+```powershell
+dotnet test SmartFileImport.sln
 ```
 
 ## Current Scope
@@ -129,8 +150,16 @@ Completed in Issue #4:
 - Applied the migration to SQL Server LocalDB.
 - Verified that the required database tables exist.
 
+Completed in Issue #5:
+
+- Created the CSV file reader service.
+- Mapped CSV columns to `Employee` properties.
+- Added clear errors for missing headers, invalid salaries, unsupported extensions, and malformed CSV rows.
+- Added focused unit tests for CSV parsing behavior.
+
 Not included yet:
 
-- File readers
+- Excel file reader
+- Full data validation
 - Background worker
 - REST endpoints for uploads, imports, or dashboard data

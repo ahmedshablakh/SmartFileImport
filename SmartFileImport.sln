@@ -7,6 +7,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Backend", "Backend", "{1AE8
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmartFileImport.Api", "Backend\SmartFileImport.Api.csproj", "{0C66C86E-0A98-4702-81F9-87610920C8FB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmartFileImport.Api.Tests", "Backend.Tests\SmartFileImport.Api.Tests.csproj", "{9DDBA5A8-24BB-4DFC-A10E-14AEE36F2074}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,6 +31,18 @@ Global
 		{0C66C86E-0A98-4702-81F9-87610920C8FB}.Release|x64.Build.0 = Release|Any CPU
 		{0C66C86E-0A98-4702-81F9-87610920C8FB}.Release|x86.ActiveCfg = Release|Any CPU
 		{0C66C86E-0A98-4702-81F9-87610920C8FB}.Release|x86.Build.0 = Release|Any CPU
+		{9DDBA5A8-24BB-4DFC-A10E-14AEE36F2074}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9DDBA5A8-24BB-4DFC-A10E-14AEE36F2074}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9DDBA5A8-24BB-4DFC-A10E-14AEE36F2074}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9DDBA5A8-24BB-4DFC-A10E-14AEE36F2074}.Debug|x64.Build.0 = Debug|Any CPU
+		{9DDBA5A8-24BB-4DFC-A10E-14AEE36F2074}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9DDBA5A8-24BB-4DFC-A10E-14AEE36F2074}.Debug|x86.Build.0 = Debug|Any CPU
+		{9DDBA5A8-24BB-4DFC-A10E-14AEE36F2074}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9DDBA5A8-24BB-4DFC-A10E-14AEE36F2074}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9DDBA5A8-24BB-4DFC-A10E-14AEE36F2074}.Release|x64.ActiveCfg = Release|Any CPU
+		{9DDBA5A8-24BB-4DFC-A10E-14AEE36F2074}.Release|x64.Build.0 = Release|Any CPU
+		{9DDBA5A8-24BB-4DFC-A10E-14AEE36F2074}.Release|x86.ActiveCfg = Release|Any CPU
+		{9DDBA5A8-24BB-4DFC-A10E-14AEE36F2074}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
