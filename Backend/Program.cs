@@ -15,6 +15,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 
 builder.Services.AddScoped<ICsvFileReader, CsvFileReader>();
+builder.Services.AddScoped<IExcelFileReader, ExcelFileReader>();
 
 builder.Services.AddControllers();
 
