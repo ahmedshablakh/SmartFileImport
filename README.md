@@ -63,7 +63,20 @@ The default connection string is stored in `Backend/appsettings.json`:
 ```
 
 The `Employee` and `ImportHistory` entities are registered in `ApplicationDbContext`.
-Migrations are intentionally not added yet. They belong to Issue #4.
+
+The initial migration is stored in `Backend/Data/Migrations`.
+
+Apply migrations:
+
+```powershell
+dotnet ef database update --project Backend/SmartFileImport.Api.csproj --startup-project Backend/SmartFileImport.Api.csproj
+```
+
+Verify tables:
+
+```powershell
+sqlcmd -S "(localdb)\MSSQLLocalDB" -d SmartFileImportDb -Q "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME"
+```
 
 ## Run The Backend
 
@@ -110,9 +123,14 @@ Completed in Issue #3:
 - Added `DbSet` properties to `ApplicationDbContext`.
 - Configured table names, required fields, string lengths, and salary precision.
 
+Completed in Issue #4:
+
+- Created the initial EF Core migration.
+- Applied the migration to SQL Server LocalDB.
+- Verified that the required database tables exist.
+
 Not included yet:
 
-- Initial database migration
 - File readers
 - Background worker
 - REST endpoints for uploads, imports, or dashboard data
