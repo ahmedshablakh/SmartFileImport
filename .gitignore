@@ -1,0 +1,35 @@
+# Build output
+bin/
+obj/
+dist/
+build/
+
+# Dependencies
+node_modules/
+
+# Local SDK/package cache
+.dotnet/
+Frontend/.npm-cache/
+
+# User and IDE files
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Logs and environment files
+*.log
+.env
+.env.*
+.run/
+
+# Local tool artifacts
+.refact/
+
+# Runtime import files
+Files/Incoming/*
+Files/Processed/*
+Files/Error/*
+!Files/Incoming/.gitkeep
+!Files/Processed/.gitkeep
+!Files/Error/.gitkeep
