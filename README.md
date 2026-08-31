@@ -21,6 +21,8 @@ SmartFileImport/
 |   |   `-- ApplicationDbContext.cs
 |   |-- Helpers/
 |   |-- Models/
+|   |   |-- Employee.cs
+|   |   `-- ImportHistory.cs
 |   |-- Services/
 |   |-- Workers/
 |   |-- Program.cs
@@ -60,7 +62,8 @@ The default connection string is stored in `Backend/appsettings.json`:
 }
 ```
 
-Entities and migrations are intentionally not added yet. They belong to Issues #3 and #4.
+The `Employee` and `ImportHistory` entities are registered in `ApplicationDbContext`.
+Migrations are intentionally not added yet. They belong to Issue #4.
 
 ## Run The Backend
 
@@ -100,9 +103,16 @@ Completed in Issue #2:
 - Added the SQL Server connection string.
 - Registered the DbContext in the backend dependency injection container.
 
+Completed in Issue #3:
+
+- Created the `Employee` entity.
+- Created the `ImportHistory` entity.
+- Added `DbSet` properties to `ApplicationDbContext`.
+- Configured table names, required fields, string lengths, and salary precision.
+
 Not included yet:
 
-- Employee and import history entities
+- Initial database migration
 - File readers
 - Background worker
 - REST endpoints for uploads, imports, or dashboard data
