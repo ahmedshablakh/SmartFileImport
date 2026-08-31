@@ -9,6 +9,7 @@ This repository is being built one issue at a time. Issue #1 creates the project
 - Backend: .NET 8, ASP.NET Core Web API
 - Frontend: React, TypeScript, Vite
 - Data layer: Entity Framework Core with SQL Server
+- Excel processing: ClosedXML
 
 ## Project Structure
 
@@ -25,12 +26,15 @@ SmartFileImport/
 |   |   `-- ImportHistory.cs
 |   |-- Services/
 |   |   |-- CsvFileReader.cs
-|   |   `-- ICsvFileReader.cs
+|   |   |-- ExcelFileReader.cs
+|   |   |-- ICsvFileReader.cs
+|   |   `-- IExcelFileReader.cs
 |   |-- Workers/
 |   |-- Program.cs
 |   `-- SmartFileImport.Api.csproj
 |-- Backend.Tests/
-|   `-- CsvFileReaderTests.cs
+|   |-- CsvFileReaderTests.cs
+|   `-- ExcelFileReaderTests.cs
 |-- Frontend/
 |   |-- src/
 |   |-- index.html
@@ -92,6 +96,16 @@ Ahmed Shablakh,ahmed@example.com,Engineering,4500.50
 ```
 
 The CSV reader maps rows to `Employee` objects. Full data validation is intentionally left for Issue #7.
+
+## Excel Format
+
+Excel files must use `.xlsx` and include these headers in the first worksheet:
+
+```text
+Name | Email | Department | Salary
+```
+
+The Excel reader maps rows from the first worksheet to `Employee` objects. Full data validation is intentionally left for Issue #7.
 
 ## Run The Backend
 
@@ -157,9 +171,16 @@ Completed in Issue #5:
 - Added clear errors for missing headers, invalid salaries, unsupported extensions, and malformed CSV rows.
 - Added focused unit tests for CSV parsing behavior.
 
+Completed in Issue #6:
+
+- Added ClosedXML for `.xlsx` file support.
+- Created the Excel file reader service.
+- Mapped worksheet columns to `Employee` properties.
+- Added clear errors for missing headers, invalid salaries, unsupported extensions, and unreadable Excel files.
+- Added focused unit tests for Excel parsing behavior.
+
 Not included yet:
 
-- Excel file reader
 - Full data validation
 - Background worker
 - REST endpoints for uploads, imports, or dashboard data
