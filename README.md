@@ -16,11 +16,11 @@ This repository is being built one issue at a time. The current completed scope 
 ```text
 SmartFileImport/
 |-- Backend/
-|   |-- Configuration/
 |   |-- Controllers/
 |   |-- Data/
 |   |   `-- ApplicationDbContext.cs
-|   |-- Helpers/
+|   |-- Configuration/
+|   |   `-- FileProcessingOptions.cs
 |   |-- Models/
 |   |   |-- Employee.cs
 |   |   `-- ImportHistory.cs
@@ -35,13 +35,15 @@ SmartFileImport/
 |   |   |-- IFileImportService.cs
 |   |   `-- IExcelFileReader.cs
 |   |-- Workers/
+|   |   `-- FileImportWorker.cs
 |   |-- Program.cs
 |   `-- SmartFileImport.Api.csproj
 |-- Backend.Tests/
 |   |-- CsvFileReaderTests.cs
 |   |-- EmployeeValidatorTests.cs
 |   |-- ExcelFileReaderTests.cs
-|   `-- FileImportServiceTests.cs
+|   |-- FileImportServiceTests.cs
+|   `-- FileImportWorkerTests.cs
 |-- Frontend/
 |   |-- src/
 |   |-- index.html
@@ -141,6 +143,19 @@ Supported import extensions are `.csv` and `.xlsx`.
 
 If validation fails, the service returns clear validation errors and does not insert any employees. File movement and import history tracking are intentionally left for later issues.
 
+## Background Processing
+
+The backend registers `FileImportWorker` as a hosted background service.
+
+The worker uses the `FileProcessing` configuration in `Backend/appsettings.json`:
+
+- `InputFolder`
+- `ScanIntervalSeconds`
+
+On each scan, the worker checks the incoming folder, detects `.csv` and `.xlsx` files, and sends supported files to `IFileImportService`.
+
+If one file fails during processing, the worker catches the error and continues with the remaining files and future scans. Processed and error file movement is intentionally left for Issue #10.
+
 ## Run The Backend
 
 ```powershell
@@ -229,9 +244,17 @@ Completed in Issue #8:
 - Registered the file import service in the backend dependency injection container.
 - Added focused unit tests for import success, validation failure, and unsupported file types.
 
+Completed in Issue #9:
+
+- Created `FileImportWorker` as an ASP.NET Core hosted background service.
+- Added periodic scanning using `FileProcessing:ScanIntervalSeconds`.
+- Scanned the configured incoming folder for supported `.csv` and `.xlsx` files.
+- Sent detected files to `IFileImportService`.
+- Kept the worker running when one file fails during processing.
+- Added focused unit tests for scanning, supported file detection, and error continuation.
+
 Not included yet:
 
-- Background worker
 - Processed and error file movement
 - Import history tracking
 - REST endpoints for uploads, imports, or dashboard data
