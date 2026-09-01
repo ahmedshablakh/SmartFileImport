@@ -17,6 +17,8 @@ This repository is being built one issue at a time. The current completed scope 
 SmartFileImport/
 |-- Backend/
 |   |-- Controllers/
+|   |   |-- FilesController.cs
+|   |   `-- HealthController.cs
 |   |-- Data/
 |   |   `-- ApplicationDbContext.cs
 |   |-- Configuration/
@@ -44,6 +46,7 @@ SmartFileImport/
 |   |-- ExcelFileReaderTests.cs
 |   |-- FileImportServiceTests.cs
 |   |-- FileImportWorkerTests.cs
+|   |-- FilesControllerTests.cs
 |   `-- TestLogger.cs
 |-- Frontend/
 |   |-- src/
@@ -67,6 +70,20 @@ The import folders are created at the repository root:
 - `Files/Error`
 
 The matching configuration lives in `Backend/appsettings.json`.
+
+## File Upload API
+
+Upload a CSV or Excel file:
+
+```http
+POST /api/files/upload
+```
+
+The request must use `multipart/form-data` with a form field named `file`.
+
+Supported upload extensions are `.csv` and `.xlsx`. Valid uploads are saved to the configured incoming folder and return `202 Accepted` so background processing can handle the file later.
+
+Unsupported, empty, or missing files return `400 Bad Request`.
 
 ## Database Configuration
 
@@ -325,6 +342,16 @@ Completed in Issue #12:
 - Stored successful import record counts.
 - Added focused test assertions for successful and failed history records.
 
+Completed in Issue #13:
+
+- Added `POST /api/files/upload`.
+- Accepted `.csv` and `.xlsx` uploads.
+- Rejected unsupported, empty, and missing uploads.
+- Saved uploaded files to the configured incoming folder.
+- Kept actual file processing in the background worker.
+- Added focused controller tests for upload success, rejection, and duplicate file names.
+
 Not included yet:
 
-- REST endpoints for uploads, imports, or dashboard data
+- REST endpoints for import history or dashboard data
+- Frontend upload UI
