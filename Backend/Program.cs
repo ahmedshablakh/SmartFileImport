@@ -4,6 +4,8 @@ using SmartFileImport.Api.Data;
 using SmartFileImport.Api.Services;
 using SmartFileImport.Api.Workers;
 
+const string FrontendCorsPolicy = "FrontendCorsPolicy";
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.ClearProviders();
@@ -15,6 +17,16 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(
+        FrontendCorsPolicy,
+        policy => policy
+            .WithOrigins("http://localhost:5173", "https://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod());
+});
 
 builder.Services.Configure<FileProcessingOptions>(
     builder.Configuration.GetSection(FileProcessingOptions.SectionName));
@@ -28,6 +40,8 @@ builder.Services.AddHostedService<FileImportWorker>();
 builder.Services.AddControllers();
 
 var app = builder.Build();
+
+app.UseCors(FrontendCorsPolicy);
 
 app.MapControllers();
 

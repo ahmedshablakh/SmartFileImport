@@ -17,6 +17,7 @@ This repository is being built one issue at a time. The current completed scope 
 SmartFileImport/
 |-- Backend/
 |   |-- Controllers/
+|   |   |-- DashboardController.cs
 |   |   |-- FilesController.cs
 |   |   `-- HealthController.cs
 |   |-- Data/
@@ -42,6 +43,7 @@ SmartFileImport/
 |   `-- SmartFileImport.Api.csproj
 |-- Backend.Tests/
 |   |-- CsvFileReaderTests.cs
+|   |-- DashboardControllerTests.cs
 |   |-- EmployeeValidatorTests.cs
 |   |-- ExcelFileReaderTests.cs
 |   |-- FileImportServiceTests.cs
@@ -178,6 +180,27 @@ Failed imports store:
 - `Status = Failed`
 - Error message
 - Processed timestamp
+
+## Dashboard API
+
+Get dashboard statistics:
+
+```http
+GET /api/dashboard
+```
+
+The response is calculated from `ImportHistory` records:
+
+```json
+{
+  "totalFiles": 3,
+  "successfulFiles": 2,
+  "failedFiles": 1,
+  "totalImportedRecords": 5
+}
+```
+
+The backend allows the local frontend dev server at `http://localhost:5173` and `https://localhost:5173` to call API endpoints.
 
 ## Background Processing
 
@@ -351,7 +374,17 @@ Completed in Issue #13:
 - Kept actual file processing in the background worker.
 - Added focused controller tests for upload success, rejection, and duplicate file names.
 
+Completed in Issue #15:
+
+- Added `GET /api/dashboard`.
+- Calculated total files from import history records.
+- Calculated successful and failed file counts.
+- Calculated total imported records from successful imports.
+- Enabled local frontend CORS access for API endpoints.
+- Added focused dashboard controller tests for populated and empty databases.
+
 Not included yet:
 
-- REST endpoints for import history or dashboard data
+- REST endpoints for import history data
+- Frontend dashboard UI
 - Frontend upload UI
