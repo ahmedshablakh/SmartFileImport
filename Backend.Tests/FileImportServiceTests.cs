@@ -1,5 +1,7 @@
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using SmartFileImport.Api.Data;
 using SmartFileImport.Api.Services;
 
@@ -30,7 +32,8 @@ public sealed class FileImportServiceTests : IDisposable
             Sara Example,sara@example.com,Finance,5200
             """);
         await using var dbContext = CreateDbContext();
-        var service = CreateService(dbContext);
+        var logger = new TestLogger<FileImportService>();
+        var service = CreateService(dbContext, logger);
 
         var result = await service.ImportAsync(filePath);
 
@@ -44,6 +47,10 @@ public sealed class FileImportServiceTests : IDisposable
         Assert.Equal(2, savedEmployees.Count);
         Assert.Equal("Ahmed Shablakh", savedEmployees[0].Name);
         Assert.Equal("Sara Example", savedEmployees[1].Name);
+        Assert.Contains(
+            logger.Entries,
+            entry => entry.LogLevel == LogLevel.Information
+                && entry.Message.Contains("Successfully imported file 'employees.csv' with 2 record(s)."));
     }
 
     [Fact]
@@ -84,7 +91,8 @@ public sealed class FileImportServiceTests : IDisposable
             Sara Example,not-an-email,Finance,5200
             """);
         await using var dbContext = CreateDbContext();
-        var service = CreateService(dbContext);
+        var logger = new TestLogger<FileImportService>();
+        var service = CreateService(dbContext, logger);
 
         var result = await service.ImportAsync(filePath);
 
@@ -92,6 +100,10 @@ public sealed class FileImportServiceTests : IDisposable
         Assert.Equal(0, result.RecordCount);
         Assert.Contains("Record 2: Email must have a valid format.", result.Errors);
         Assert.Equal(0, await dbContext.Employees.CountAsync());
+        Assert.Contains(
+            logger.Entries,
+            entry => entry.LogLevel == LogLevel.Warning
+                && entry.Message.Contains("Validation failed for file 'invalid-employees.csv'"));
     }
 
     [Fact]
@@ -104,7 +116,8 @@ public sealed class FileImportServiceTests : IDisposable
             Ahmed Shablakh,ahmed@example.com,Engineering,4500.50
             """);
         await using var dbContext = CreateDbContext();
-        var service = CreateService(dbContext);
+        var logger = new TestLogger<FileImportService>();
+        var service = CreateService(dbContext, logger);
 
         var exception = await Assert.ThrowsAsync<InvalidDataException>(
             () => service.ImportAsync(filePath));
@@ -112,6 +125,11 @@ public sealed class FileImportServiceTests : IDisposable
         Assert.Contains("unsupported file type", exception.Message);
         Assert.Contains(".csv and .xlsx", exception.Message);
         Assert.Equal(0, await dbContext.Employees.CountAsync());
+        Assert.Contains(
+            logger.Entries,
+            entry => entry.LogLevel == LogLevel.Error
+                && entry.Exception == exception
+                && entry.Message.Contains("Import failed for file 'employees.txt'"));
     }
 
     public void Dispose()
@@ -131,13 +149,16 @@ public sealed class FileImportServiceTests : IDisposable
         return new ApplicationDbContext(options);
     }
 
-    private static FileImportService CreateService(ApplicationDbContext dbContext)
+    private static FileImportService CreateService(
+        ApplicationDbContext dbContext,
+        ILogger<FileImportService>? logger = null)
     {
         return new FileImportService(
             dbContext,
             new CsvFileReader(),
             new ExcelFileReader(),
-            new EmployeeValidator());
+            new EmployeeValidator(),
+            logger ?? NullLogger<FileImportService>.Instance);
     }
 
     private string WriteCsv(string fileName, string contents)
