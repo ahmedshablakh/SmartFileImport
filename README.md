@@ -142,7 +142,25 @@ File
 
 Supported import extensions are `.csv` and `.xlsx`.
 
-If validation fails, the service returns clear validation errors and does not insert any employees. File movement and import history tracking are intentionally left for later issues.
+If validation fails, the service returns clear validation errors and does not insert any employees.
+
+## Import History Tracking
+
+Every file import attempt creates an `ImportHistory` record.
+
+Successful imports store:
+
+- File name
+- `Status = Success`
+- Record count
+- Processed timestamp
+
+Failed imports store:
+
+- File name
+- `Status = Failed`
+- Error message
+- Processed timestamp
 
 ## Background Processing
 
@@ -299,7 +317,14 @@ Completed in Issue #11:
 - Kept per-file exception handling in the worker so one failed file does not stop later files.
 - Added focused test logging assertions for validation and import failure paths.
 
+Completed in Issue #12:
+
+- Recorded successful import attempts in `ImportHistory`.
+- Recorded failed import attempts in `ImportHistory`.
+- Stored failed import error messages.
+- Stored successful import record counts.
+- Added focused test assertions for successful and failed history records.
+
 Not included yet:
 
-- Import history tracking
 - REST endpoints for uploads, imports, or dashboard data

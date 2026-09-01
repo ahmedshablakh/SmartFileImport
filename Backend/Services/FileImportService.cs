@@ -5,6 +5,10 @@ namespace SmartFileImport.Api.Services;
 
 public class FileImportService : IFileImportService
 {
+    private const string SuccessStatus = "Success";
+    private const string FailedStatus = "Failed";
+    private const int MaxErrorMessageLength = 2000;
+
     private readonly ApplicationDbContext _dbContext;
     private readonly ICsvFileReader _csvFileReader;
     private readonly IExcelFileReader _excelFileReader;
@@ -51,11 +55,15 @@ public class FileImportService : IFileImportService
 
             if (validationErrors.Count > 0)
             {
+                var errorMessage = BuildErrorMessage(validationErrors);
+
                 _logger.LogWarning(
                     "Validation failed for file '{FileName}' with {ErrorCount} error(s): {ValidationErrors}",
                     fileName,
                     validationErrors.Count,
-                    string.Join("; ", validationErrors));
+                    errorMessage);
+
+                await RecordFailedImportAsync(fileName, errorMessage, cancellationToken);
 
                 return FileImportResult.Failed(validationErrors);
             }
@@ -66,6 +74,9 @@ public class FileImportService : IFileImportService
                 fileName);
 
             await _dbContext.Employees.AddRangeAsync(employees, cancellationToken);
+            await _dbContext.ImportHistories.AddAsync(
+                CreateSuccessHistory(fileName, employees.Count),
+                cancellationToken);
             await _dbContext.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(
@@ -83,6 +94,7 @@ public class FileImportService : IFileImportService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Import failed for file '{FileName}'.", fileName);
+            await TryRecordFailedImportAsync(fileName, ex.Message, cancellationToken);
             throw;
         }
     }
@@ -109,5 +121,79 @@ public class FileImportService : IFileImportService
 
         throw new InvalidDataException(
             $"File '{Path.GetFileName(filePath)}' uses unsupported file type '{displayExtension}'. Supported file types are .csv and .xlsx.");
+    }
+
+    private static ImportHistory CreateSuccessHistory(string fileName, int recordCount)
+    {
+        return new ImportHistory
+        {
+            FileName = fileName,
+            Status = SuccessStatus,
+            RecordCount = recordCount,
+            ProcessedAt = DateTime.UtcNow
+        };
+    }
+
+    private static ImportHistory CreateFailedHistory(string fileName, string errorMessage)
+    {
+        return new ImportHistory
+        {
+            FileName = fileName,
+            Status = FailedStatus,
+            RecordCount = 0,
+            ProcessedAt = DateTime.UtcNow,
+            ErrorMessage = TrimErrorMessage(errorMessage)
+        };
+    }
+
+    private async Task RecordFailedImportAsync(
+        string fileName,
+        string errorMessage,
+        CancellationToken cancellationToken)
+    {
+        await _dbContext.ImportHistories.AddAsync(
+            CreateFailedHistory(fileName, errorMessage),
+            cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task TryRecordFailedImportAsync(
+        string fileName,
+        string errorMessage,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            _dbContext.ChangeTracker.Clear();
+            await RecordFailedImportAsync(fileName, errorMessage, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception historyException)
+        {
+            _logger.LogError(
+                historyException,
+                "Failed to record import history for failed file '{FileName}'.",
+                fileName);
+        }
+    }
+
+    private static string BuildErrorMessage(IEnumerable<string> errors)
+    {
+        return TrimErrorMessage(string.Join("; ", errors));
+    }
+
+    private static string TrimErrorMessage(string errorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(errorMessage))
+        {
+            return "Import failed.";
+        }
+
+        return errorMessage.Length <= MaxErrorMessageLength
+            ? errorMessage
+            : errorMessage[..MaxErrorMessageLength];
     }
 }

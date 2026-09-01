@@ -40,6 +40,7 @@ public sealed class FileImportServiceTests : IDisposable
         var savedEmployees = await dbContext.Employees
             .OrderBy(employee => employee.Name)
             .ToListAsync();
+        var importHistory = await dbContext.ImportHistories.SingleAsync();
 
         Assert.True(result.Succeeded);
         Assert.Equal(2, result.RecordCount);
@@ -47,6 +48,11 @@ public sealed class FileImportServiceTests : IDisposable
         Assert.Equal(2, savedEmployees.Count);
         Assert.Equal("Ahmed Shablakh", savedEmployees[0].Name);
         Assert.Equal("Sara Example", savedEmployees[1].Name);
+        Assert.Equal("employees.csv", importHistory.FileName);
+        Assert.Equal("Success", importHistory.Status);
+        Assert.Equal(2, importHistory.RecordCount);
+        Assert.Null(importHistory.ErrorMessage);
+        AssertRecentlyProcessed(importHistory.ProcessedAt);
         Assert.Contains(
             logger.Entries,
             entry => entry.LogLevel == LogLevel.Information
@@ -72,12 +78,18 @@ public sealed class FileImportServiceTests : IDisposable
         var result = await service.ImportAsync(filePath);
 
         var savedEmployee = await dbContext.Employees.SingleAsync();
+        var importHistory = await dbContext.ImportHistories.SingleAsync();
 
         Assert.True(result.Succeeded);
         Assert.Equal(1, result.RecordCount);
         Assert.Empty(result.Errors);
         Assert.Equal("Ahmed Shablakh", savedEmployee.Name);
         Assert.Equal(4500.50m, savedEmployee.Salary);
+        Assert.Equal("employees.xlsx", importHistory.FileName);
+        Assert.Equal("Success", importHistory.Status);
+        Assert.Equal(1, importHistory.RecordCount);
+        Assert.Null(importHistory.ErrorMessage);
+        AssertRecentlyProcessed(importHistory.ProcessedAt);
     }
 
     [Fact]
@@ -100,6 +112,12 @@ public sealed class FileImportServiceTests : IDisposable
         Assert.Equal(0, result.RecordCount);
         Assert.Contains("Record 2: Email must have a valid format.", result.Errors);
         Assert.Equal(0, await dbContext.Employees.CountAsync());
+        var importHistory = await dbContext.ImportHistories.SingleAsync();
+        Assert.Equal("invalid-employees.csv", importHistory.FileName);
+        Assert.Equal("Failed", importHistory.Status);
+        Assert.Equal(0, importHistory.RecordCount);
+        Assert.Contains("Record 2: Email must have a valid format.", importHistory.ErrorMessage);
+        AssertRecentlyProcessed(importHistory.ProcessedAt);
         Assert.Contains(
             logger.Entries,
             entry => entry.LogLevel == LogLevel.Warning
@@ -125,6 +143,12 @@ public sealed class FileImportServiceTests : IDisposable
         Assert.Contains("unsupported file type", exception.Message);
         Assert.Contains(".csv and .xlsx", exception.Message);
         Assert.Equal(0, await dbContext.Employees.CountAsync());
+        var importHistory = await dbContext.ImportHistories.SingleAsync();
+        Assert.Equal("employees.txt", importHistory.FileName);
+        Assert.Equal("Failed", importHistory.Status);
+        Assert.Equal(0, importHistory.RecordCount);
+        Assert.Contains("unsupported file type", importHistory.ErrorMessage);
+        AssertRecentlyProcessed(importHistory.ProcessedAt);
         Assert.Contains(
             logger.Entries,
             entry => entry.LogLevel == LogLevel.Error
@@ -147,6 +171,12 @@ public sealed class FileImportServiceTests : IDisposable
             .Options;
 
         return new ApplicationDbContext(options);
+    }
+
+    private static void AssertRecentlyProcessed(DateTime processedAt)
+    {
+        Assert.True(processedAt > DateTime.UtcNow.AddMinutes(-1));
+        Assert.True(processedAt <= DateTime.UtcNow.AddSeconds(1));
     }
 
     private static FileImportService CreateService(
