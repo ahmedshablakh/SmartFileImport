@@ -48,6 +48,7 @@ SmartFileImport/
 |   |-- EmployeeValidatorTests.cs
 |   |-- ExcelFileReaderTests.cs
 |   |-- FileImportServiceTests.cs
+|   |-- FileImportWorkflowTests.cs
 |   |-- FileImportWorkerTests.cs
 |   |-- FilesControllerTests.cs
 |   |-- ImportsControllerTests.cs
@@ -322,6 +323,19 @@ npm run dev
 dotnet test SmartFileImport.sln
 ```
 
+## Workflow Test Coverage
+
+The test suite includes workflow coverage for:
+
+- Valid CSV imports.
+- Valid Excel imports.
+- Empty files.
+- Invalid employee data.
+- Unsupported file types.
+- Database save errors.
+- File movement errors.
+- Worker continuation after per-file failures.
+
 ## Current Scope
 
 Completed in Issue #1:
@@ -452,6 +466,15 @@ Completed in Issue #18:
 - Added a frontend import history table.
 - Added a frontend import details panel.
 - Added focused import history controller tests.
+
+Completed in Issue #19:
+
+- Added workflow-level tests for valid CSV and Excel imports.
+- Verified valid files insert employees, record successful import history, and move to the processed folder.
+- Verified empty and invalid files do not insert employees, record failed import history, and move to the error folder.
+- Verified unsupported file types record failed import history through the import service.
+- Verified database save errors are logged and the worker continues with remaining files.
+- Verified file movement errors are logged without stopping later files.
 
 Not included yet:
 
