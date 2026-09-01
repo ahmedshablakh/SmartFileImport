@@ -94,6 +94,7 @@ public class FileImportWorker : BackgroundService
                     Path.GetFileName(filePath),
                     result.RecordCount);
 
+                MoveFile(filePath, ResolveProcessedFolder(), "processed");
                 return;
             }
 
@@ -101,6 +102,8 @@ public class FileImportWorker : BackgroundService
                 "File '{FileName}' failed validation: {ValidationErrors}",
                 Path.GetFileName(filePath),
                 string.Join("; ", result.Errors));
+
+            MoveFile(filePath, ResolveErrorFolder(), "error");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -112,6 +115,32 @@ public class FileImportWorker : BackgroundService
                 ex,
                 "Failed to process file '{FileName}'. The worker will continue with the next file.",
                 Path.GetFileName(filePath));
+
+            MoveFile(filePath, ResolveErrorFolder(), "error");
+        }
+    }
+
+    private void MoveFile(string filePath, string destinationFolder, string destinationName)
+    {
+        try
+        {
+            Directory.CreateDirectory(destinationFolder);
+
+            var destinationPath = BuildAvailableDestinationPath(destinationFolder, Path.GetFileName(filePath));
+            File.Move(filePath, destinationPath);
+
+            _logger.LogInformation(
+                "Moved file '{FileName}' to {DestinationName} folder.",
+                Path.GetFileName(filePath),
+                destinationName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to move file '{FileName}' to {DestinationName} folder. The worker will continue.",
+                Path.GetFileName(filePath),
+                destinationName);
         }
     }
 
@@ -132,11 +161,26 @@ public class FileImportWorker : BackgroundService
 
     private string ResolveIncomingFolder()
     {
-        var inputFolder = string.IsNullOrWhiteSpace(_options.InputFolder)
-            ? "Files/Incoming"
-            : _options.InputFolder;
+        return ResolveFolder(_options.InputFolder, "Files/Incoming");
+    }
 
-        return Path.GetFullPath(inputFolder);
+    private string ResolveProcessedFolder()
+    {
+        return ResolveFolder(_options.ProcessedFolder, "Files/Processed");
+    }
+
+    private string ResolveErrorFolder()
+    {
+        return ResolveFolder(_options.ErrorFolder, "Files/Error");
+    }
+
+    private static string ResolveFolder(string configuredFolder, string fallbackFolder)
+    {
+        var folder = string.IsNullOrWhiteSpace(configuredFolder)
+            ? fallbackFolder
+            : configuredFolder;
+
+        return Path.GetFullPath(folder);
     }
 
     private TimeSpan GetScanInterval()
@@ -153,5 +197,33 @@ public class FileImportWorker : BackgroundService
         var extension = Path.GetExtension(filePath);
 
         return SupportedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string BuildAvailableDestinationPath(string destinationFolder, string fileName)
+    {
+        var destinationPath = Path.Combine(destinationFolder, fileName);
+
+        if (!File.Exists(destinationPath))
+        {
+            return destinationPath;
+        }
+
+        var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+        var extension = Path.GetExtension(fileName);
+        var suffix = 1;
+
+        while (true)
+        {
+            destinationPath = Path.Combine(
+                destinationFolder,
+                $"{fileNameWithoutExtension}_{suffix}{extension}");
+
+            if (!File.Exists(destinationPath))
+            {
+                return destinationPath;
+            }
+
+            suffix++;
+        }
     }
 }

@@ -25,9 +25,10 @@ public sealed class FileImportWorkerTests : IDisposable
     public async Task ProcessPendingFilesAsync_WhenSupportedFilesExist_SendsThemToImportService()
     {
         var incomingFolder = CreateIncomingFolder();
-        WriteFile(incomingFolder, "employees.csv");
-        WriteFile(incomingFolder, "employees.xlsx");
-        WriteFile(incomingFolder, "notes.txt");
+        var csvPath = WriteFile(incomingFolder, "employees.csv");
+        var excelPath = WriteFile(incomingFolder, "employees.xlsx");
+        var textPath = WriteFile(incomingFolder, "notes.txt");
+        var processedFolder = GetProcessedFolder();
         var importService = new FakeFileImportService();
         using var serviceProvider = CreateServiceProvider(importService);
         var worker = CreateWorker(serviceProvider, incomingFolder);
@@ -37,14 +38,21 @@ public sealed class FileImportWorkerTests : IDisposable
         Assert.Equal(
             new[] { "employees.csv", "employees.xlsx" },
             importService.ImportedFileNames);
+        Assert.False(File.Exists(csvPath));
+        Assert.False(File.Exists(excelPath));
+        Assert.True(File.Exists(textPath));
+        Assert.True(File.Exists(Path.Combine(processedFolder, "employees.csv")));
+        Assert.True(File.Exists(Path.Combine(processedFolder, "employees.xlsx")));
     }
 
     [Fact]
     public async Task ProcessPendingFilesAsync_WhenImportFails_ContinuesWithRemainingFiles()
     {
         var incomingFolder = CreateIncomingFolder();
-        WriteFile(incomingFolder, "first.csv");
-        WriteFile(incomingFolder, "second.csv");
+        var firstPath = WriteFile(incomingFolder, "first.csv");
+        var secondPath = WriteFile(incomingFolder, "second.csv");
+        var processedFolder = GetProcessedFolder();
+        var errorFolder = GetErrorFolder();
         var importService = new FakeFileImportService
         {
             FileNameToThrow = "first.csv"
@@ -57,13 +65,18 @@ public sealed class FileImportWorkerTests : IDisposable
         Assert.Equal(
             new[] { "first.csv", "second.csv" },
             importService.ImportedFileNames);
+        Assert.False(File.Exists(firstPath));
+        Assert.False(File.Exists(secondPath));
+        Assert.True(File.Exists(Path.Combine(errorFolder, "first.csv")));
+        Assert.True(File.Exists(Path.Combine(processedFolder, "second.csv")));
     }
 
     [Fact]
-    public async Task ProcessPendingFilesAsync_WhenFileIsUnchanged_DoesNotImportItTwice()
+    public async Task ProcessPendingFilesAsync_WhenFileWasMoved_DoesNotImportItTwice()
     {
         var incomingFolder = CreateIncomingFolder();
         WriteFile(incomingFolder, "employees.csv");
+        var processedFolder = GetProcessedFolder();
         var importService = new FakeFileImportService();
         using var serviceProvider = CreateServiceProvider(importService);
         var worker = CreateWorker(serviceProvider, incomingFolder);
@@ -72,6 +85,65 @@ public sealed class FileImportWorkerTests : IDisposable
         await worker.ProcessPendingFilesAsync();
 
         Assert.Equal(new[] { "employees.csv" }, importService.ImportedFileNames);
+        Assert.True(File.Exists(Path.Combine(processedFolder, "employees.csv")));
+    }
+
+    [Fact]
+    public async Task ProcessPendingFilesAsync_WhenValidationFails_MovesFileToErrorFolder()
+    {
+        var incomingFolder = CreateIncomingFolder();
+        var filePath = WriteFile(incomingFolder, "invalid.csv");
+        var errorFolder = GetErrorFolder();
+        var importService = new FakeFileImportService();
+        importService.ResultsByFileName["invalid.csv"] = FileImportResult.Failed(
+            new[] { "Record 1: Name is required." });
+        using var serviceProvider = CreateServiceProvider(importService);
+        var worker = CreateWorker(serviceProvider, incomingFolder);
+
+        await worker.ProcessPendingFilesAsync();
+
+        Assert.False(File.Exists(filePath));
+        Assert.True(File.Exists(Path.Combine(errorFolder, "invalid.csv")));
+    }
+
+    [Fact]
+    public async Task ProcessPendingFilesAsync_WhenDestinationFileExists_UsesUniqueFileName()
+    {
+        var incomingFolder = CreateIncomingFolder();
+        WriteFile(incomingFolder, "employees.csv", "new file");
+        var processedFolder = GetProcessedFolder();
+        Directory.CreateDirectory(processedFolder);
+        File.WriteAllText(Path.Combine(processedFolder, "employees.csv"), "existing file");
+        var importService = new FakeFileImportService();
+        using var serviceProvider = CreateServiceProvider(importService);
+        var worker = CreateWorker(serviceProvider, incomingFolder);
+
+        await worker.ProcessPendingFilesAsync();
+
+        Assert.Equal("existing file", File.ReadAllText(Path.Combine(processedFolder, "employees.csv")));
+        Assert.Equal("new file", File.ReadAllText(Path.Combine(processedFolder, "employees_1.csv")));
+    }
+
+    [Fact]
+    public async Task ProcessPendingFilesAsync_WhenFileMoveFails_ContinuesSafely()
+    {
+        var incomingFolder = CreateIncomingFolder();
+        var firstPath = WriteFile(incomingFolder, "first.csv");
+        var secondPath = WriteFile(incomingFolder, "second.csv");
+        var processedFolder = Path.Combine(_testDirectory, "ProcessedAsFile");
+        File.WriteAllText(processedFolder, "not a folder");
+        var importService = new FakeFileImportService();
+        using var serviceProvider = CreateServiceProvider(importService);
+        var worker = CreateWorker(serviceProvider, incomingFolder, processedFolder);
+
+        await worker.ProcessPendingFilesAsync();
+        await worker.ProcessPendingFilesAsync();
+
+        Assert.Equal(
+            new[] { "first.csv", "second.csv" },
+            importService.ImportedFileNames);
+        Assert.True(File.Exists(firstPath));
+        Assert.True(File.Exists(secondPath));
     }
 
     public void Dispose()
@@ -89,6 +161,16 @@ public sealed class FileImportWorkerTests : IDisposable
         return incomingFolder;
     }
 
+    private string GetProcessedFolder()
+    {
+        return Path.Combine(_testDirectory, "Processed");
+    }
+
+    private string GetErrorFolder()
+    {
+        return Path.Combine(_testDirectory, "Error");
+    }
+
     private static ServiceProvider CreateServiceProvider(IFileImportService importService)
     {
         var services = new ServiceCollection();
@@ -96,26 +178,36 @@ public sealed class FileImportWorkerTests : IDisposable
         return services.BuildServiceProvider();
     }
 
-    private static FileImportWorker CreateWorker(IServiceProvider serviceProvider, string incomingFolder)
+    private FileImportWorker CreateWorker(
+        IServiceProvider serviceProvider,
+        string incomingFolder,
+        string? processedFolder = null,
+        string? errorFolder = null)
     {
         return new FileImportWorker(
             serviceProvider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(new FileProcessingOptions
             {
                 InputFolder = incomingFolder,
+                ProcessedFolder = processedFolder ?? GetProcessedFolder(),
+                ErrorFolder = errorFolder ?? GetErrorFolder(),
                 ScanIntervalSeconds = 1
             }),
             NullLogger<FileImportWorker>.Instance);
     }
 
-    private static void WriteFile(string folder, string fileName)
+    private static string WriteFile(string folder, string fileName, string contents = "test")
     {
-        File.WriteAllText(Path.Combine(folder, fileName), "test");
+        var filePath = Path.Combine(folder, fileName);
+        File.WriteAllText(filePath, contents);
+        return filePath;
     }
 
     private sealed class FakeFileImportService : IFileImportService
     {
         public List<string> ImportedFileNames { get; } = new();
+
+        public Dictionary<string, FileImportResult> ResultsByFileName { get; } = new(StringComparer.OrdinalIgnoreCase);
 
         public string? FileNameToThrow { get; init; }
 
@@ -129,6 +221,11 @@ public sealed class FileImportWorkerTests : IDisposable
             if (string.Equals(fileName, FileNameToThrow, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException("Import failed.");
+            }
+
+            if (ResultsByFileName.TryGetValue(fileName, out var result))
+            {
+                return Task.FromResult(result);
             }
 
             return Task.FromResult(FileImportResult.Success(1));
