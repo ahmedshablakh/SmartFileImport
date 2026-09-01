@@ -28,8 +28,11 @@ SmartFileImport/
 |   |   |-- CsvFileReader.cs
 |   |   |-- EmployeeValidator.cs
 |   |   |-- ExcelFileReader.cs
+|   |   |-- FileImportResult.cs
+|   |   |-- FileImportService.cs
 |   |   |-- ICsvFileReader.cs
 |   |   |-- IEmployeeValidator.cs
+|   |   |-- IFileImportService.cs
 |   |   `-- IExcelFileReader.cs
 |   |-- Workers/
 |   |-- Program.cs
@@ -37,7 +40,8 @@ SmartFileImport/
 |-- Backend.Tests/
 |   |-- CsvFileReaderTests.cs
 |   |-- EmployeeValidatorTests.cs
-|   `-- ExcelFileReaderTests.cs
+|   |-- ExcelFileReaderTests.cs
+|   `-- FileImportServiceTests.cs
 |-- Frontend/
 |   |-- src/
 |   |-- index.html
@@ -119,7 +123,23 @@ Imported employees are validated with these rules:
 - Department is required.
 - Salary must be greater than zero.
 
-The validator returns all detected errors with record numbers. The full import fail/save workflow is intentionally left for a later issue.
+The validator returns all detected errors with record numbers.
+
+## File Import Service
+
+The file import service runs the reusable import workflow:
+
+```text
+File
+|-- Check file type
+|-- Read CSV or Excel data
+|-- Validate employees
+`-- Save valid employees with EF Core
+```
+
+Supported import extensions are `.csv` and `.xlsx`.
+
+If validation fails, the service returns clear validation errors and does not insert any employees. File movement and import history tracking are intentionally left for later issues.
 
 ## Run The Backend
 
@@ -200,8 +220,18 @@ Completed in Issue #7:
 - Registered the validator in the backend dependency injection container.
 - Added focused unit tests for validation behavior.
 
+Completed in Issue #8:
+
+- Created the reusable file import service.
+- Added CSV and Excel reader selection by file extension.
+- Validated imported employees before database insertion.
+- Saved valid employees with Entity Framework Core.
+- Registered the file import service in the backend dependency injection container.
+- Added focused unit tests for import success, validation failure, and unsupported file types.
+
 Not included yet:
 
-- File import orchestration
 - Background worker
+- Processed and error file movement
+- Import history tracking
 - REST endpoints for uploads, imports, or dashboard data
