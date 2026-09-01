@@ -16,6 +16,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddScoped<ICsvFileReader, CsvFileReader>();
 builder.Services.AddScoped<IExcelFileReader, ExcelFileReader>();
+builder.Services.AddScoped<IEmployeeValidator, EmployeeValidator>();
 
 builder.Services.AddControllers();
 

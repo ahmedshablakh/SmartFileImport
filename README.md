@@ -2,7 +2,7 @@
 
 Smart File Import Service is a small backend and frontend project for managing CSV and Excel file imports.
 
-This repository is being built one issue at a time. Issue #1 creates the project structure only: a runnable ASP.NET Core Web API, a runnable React TypeScript frontend, and the base import folders.
+This repository is being built one issue at a time. The current completed scope is listed below.
 
 ## Technologies
 
@@ -26,14 +26,17 @@ SmartFileImport/
 |   |   `-- ImportHistory.cs
 |   |-- Services/
 |   |   |-- CsvFileReader.cs
+|   |   |-- EmployeeValidator.cs
 |   |   |-- ExcelFileReader.cs
 |   |   |-- ICsvFileReader.cs
+|   |   |-- IEmployeeValidator.cs
 |   |   `-- IExcelFileReader.cs
 |   |-- Workers/
 |   |-- Program.cs
 |   `-- SmartFileImport.Api.csproj
 |-- Backend.Tests/
 |   |-- CsvFileReaderTests.cs
+|   |-- EmployeeValidatorTests.cs
 |   `-- ExcelFileReaderTests.cs
 |-- Frontend/
 |   |-- src/
@@ -95,7 +98,7 @@ Name,Email,Department,Salary
 Ahmed Shablakh,ahmed@example.com,Engineering,4500.50
 ```
 
-The CSV reader maps rows to `Employee` objects. Full data validation is intentionally left for Issue #7.
+The CSV reader maps rows to `Employee` objects. Employee validation is handled by the data validation service.
 
 ## Excel Format
 
@@ -105,7 +108,18 @@ Excel files must use `.xlsx` and include these headers in the first worksheet:
 Name | Email | Department | Salary
 ```
 
-The Excel reader maps rows from the first worksheet to `Employee` objects. Full data validation is intentionally left for Issue #7.
+The Excel reader maps rows from the first worksheet to `Employee` objects. Employee validation is handled by the data validation service.
+
+## Data Validation
+
+Imported employees are validated with these rules:
+
+- Name is required.
+- Email must have a valid format.
+- Department is required.
+- Salary must be greater than zero.
+
+The validator returns all detected errors with record numbers. The full import fail/save workflow is intentionally left for a later issue.
 
 ## Run The Backend
 
@@ -179,8 +193,15 @@ Completed in Issue #6:
 - Added clear errors for missing headers, invalid salaries, unsupported extensions, and unreadable Excel files.
 - Added focused unit tests for Excel parsing behavior.
 
+Completed in Issue #7:
+
+- Created the employee validation service.
+- Added validation rules for name, email, department, and salary.
+- Registered the validator in the backend dependency injection container.
+- Added focused unit tests for validation behavior.
+
 Not included yet:
 
-- Full data validation
+- File import orchestration
 - Background worker
 - REST endpoints for uploads, imports, or dashboard data
