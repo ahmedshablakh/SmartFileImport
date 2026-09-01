@@ -19,7 +19,8 @@ SmartFileImport/
 |   |-- Controllers/
 |   |   |-- DashboardController.cs
 |   |   |-- FilesController.cs
-|   |   `-- HealthController.cs
+|   |   |-- HealthController.cs
+|   |   `-- ImportsController.cs
 |   |-- Data/
 |   |   `-- ApplicationDbContext.cs
 |   |-- Configuration/
@@ -49,6 +50,7 @@ SmartFileImport/
 |   |-- FileImportServiceTests.cs
 |   |-- FileImportWorkerTests.cs
 |   |-- FilesControllerTests.cs
+|   |-- ImportsControllerTests.cs
 |   `-- TestLogger.cs
 |-- Frontend/
 |   |-- src/
@@ -99,6 +101,19 @@ Override the API base URL when needed:
 $env:VITE_API_BASE_URL = "http://localhost:5107"
 npm run dev
 ```
+
+## Frontend Import History UI
+
+The history screen loads import records from the backend, displays them in a table, and shows details for the selected import.
+
+The table displays:
+
+- File name
+- Status
+- Record count
+- Processed date
+
+The details panel displays the selected import's error message when one exists.
 
 ## Database Configuration
 
@@ -193,6 +208,31 @@ Failed imports store:
 - `Status = Failed`
 - Error message
 - Processed timestamp
+
+## Import History API
+
+Get import history:
+
+```http
+GET /api/imports
+```
+
+Get one import history record:
+
+```http
+GET /api/imports/{id}
+```
+
+Each response item includes:
+
+- `id`
+- `fileName`
+- `status`
+- `recordCount`
+- `processedAt`
+- `errorMessage`
+
+Missing import history records return `404 Not Found`.
 
 ## Dashboard API
 
@@ -404,8 +444,15 @@ Completed in Issue #17:
 - Displayed upload success and error messages from the API.
 - Added local API base URL configuration through `VITE_API_BASE_URL`.
 
+Completed in Issue #18:
+
+- Added `GET /api/imports`.
+- Added `GET /api/imports/{id}`.
+- Returned import history file name, status, record count, processed date, and error message.
+- Added a frontend import history table.
+- Added a frontend import details panel.
+- Added focused import history controller tests.
+
 Not included yet:
 
-- REST endpoints for import history data
 - Frontend dashboard UI
-- Frontend import history UI

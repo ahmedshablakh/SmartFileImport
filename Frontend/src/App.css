@@ -77,16 +77,27 @@ nav a[aria-current="page"] {
   color: #0d554f;
 }
 
+.history-workspace,
 .upload-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
   gap: 20px;
   align-items: start;
   padding-top: 28px;
 }
 
+.history-workspace {
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.5fr);
+}
+
+.upload-workspace {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  padding-top: 20px;
+}
+
 .upload-panel,
-.import-summary {
+.import-summary,
+.history-panel,
+.history-details {
   border: 1px solid #d8dee3;
   border-radius: 8px;
   background: #ffffff;
@@ -100,6 +111,13 @@ nav a[aria-current="page"] {
 .panel-heading {
   padding-bottom: 20px;
   border-bottom: 1px solid #edf0f2;
+}
+
+.panel-heading--split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .panel-heading h2 {
@@ -173,17 +191,22 @@ nav a[aria-current="page"] {
 }
 
 button {
-  min-width: 132px;
-  min-height: 44px;
+  min-height: 38px;
   border: 0;
   border-radius: 8px;
-  padding: 10px 16px;
+  padding: 8px 14px;
   background: #0f766e;
   color: #ffffff;
   font: inherit;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.primary-button {
+  min-width: 132px;
+  min-height: 44px;
+  padding: 10px 16px;
 }
 
 button:hover:not(:disabled) {
@@ -193,6 +216,38 @@ button:hover:not(:disabled) {
 button:disabled {
   background: #a7b4b1;
   cursor: not-allowed;
+}
+
+.secondary-button {
+  border: 1px solid #cbd5d9;
+  background: #ffffff;
+  color: #243b37;
+}
+
+.secondary-button:hover:not(:disabled) {
+  border-color: #0f766e;
+  background: #edf8f6;
+  color: #0d554f;
+}
+
+.link-button {
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  color: #0e5f77;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.link-button:hover:not(:disabled) {
+  background: transparent;
+  color: #0a4556;
+  text-decoration: underline;
 }
 
 .notice {
@@ -257,9 +312,127 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.history-panel,
+.history-details {
+  min-width: 0;
+  padding: 24px;
+}
+
+.table-shell {
+  overflow-x: auto;
+}
+
+.history-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.history-table th,
+.history-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #edf0f2;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.history-table th {
+  color: #60706c;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.history-table td {
+  color: #23312e;
+  font-size: 14px;
+}
+
+.history-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.history-row--selected td {
+  background: #f2faf8;
+}
+
+.table-state {
+  height: 136px;
+  color: #60706c;
+  text-align: center;
+}
+
+.table-state--error {
+  color: #813427;
+}
+
+.table-action {
+  min-width: 70px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.status-pill--success {
+  background: #ddf4ed;
+  color: #176052;
+}
+
+.status-pill--failed {
+  background: #ffebe7;
+  color: #8c382b;
+}
+
+.details-list {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding-top: 20px;
+}
+
+.details-list div {
+  display: grid;
+  gap: 5px;
+}
+
+.details-list dt {
+  color: #60706c;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.details-list dd {
+  margin: 0;
+  color: #172c28;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.details-state {
+  padding-top: 20px;
+  color: #60706c;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.error-message {
+  white-space: pre-wrap;
+}
+
 @media (max-width: 860px) {
   .topbar,
-  .upload-workspace {
+  .upload-workspace,
+  .history-workspace {
     grid-template-columns: 1fr;
   }
 
@@ -272,7 +445,7 @@ button:disabled {
     justify-content: stretch;
   }
 
-  button {
+  .primary-button {
     width: 100%;
   }
 }
@@ -293,6 +466,16 @@ button:disabled {
 
   .upload-panel {
     padding: 18px;
+  }
+
+  .history-panel,
+  .history-details {
+    padding: 18px;
+  }
+
+  .panel-heading--split {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .file-target {
