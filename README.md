@@ -87,6 +87,19 @@ Supported upload extensions are `.csv` and `.xlsx`. Valid uploads are saved to t
 
 Unsupported, empty, or missing files return `400 Bad Request`.
 
+## Frontend Upload UI
+
+The upload screen lets a user select a `.csv` or `.xlsx` employee import file and send it to the backend upload API.
+
+By default, the frontend calls the backend at `http://localhost:5107`.
+
+Override the API base URL when needed:
+
+```powershell
+$env:VITE_API_BASE_URL = "http://localhost:5107"
+npm run dev
+```
+
 ## Database Configuration
 
 The backend is configured for SQL Server through Entity Framework Core.
@@ -383,8 +396,16 @@ Completed in Issue #15:
 - Enabled local frontend CORS access for API endpoints.
 - Added focused dashboard controller tests for populated and empty databases.
 
+Completed in Issue #17:
+
+- Replaced the placeholder frontend screen with a file upload workspace.
+- Added CSV and XLSX file selection.
+- Connected the upload form to `POST /api/files/upload`.
+- Displayed upload success and error messages from the API.
+- Added local API base URL configuration through `VITE_API_BASE_URL`.
+
 Not included yet:
 
 - REST endpoints for import history data
 - Frontend dashboard UI
-- Frontend upload UI
+- Frontend import history UI
