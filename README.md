@@ -150,11 +150,26 @@ The backend registers `FileImportWorker` as a hosted background service.
 The worker uses the `FileProcessing` configuration in `Backend/appsettings.json`:
 
 - `InputFolder`
+- `ProcessedFolder`
+- `ErrorFolder`
 - `ScanIntervalSeconds`
 
 On each scan, the worker checks the incoming folder, detects `.csv` and `.xlsx` files, and sends supported files to `IFileImportService`.
 
-If one file fails during processing, the worker catches the error and continues with the remaining files and future scans. Processed and error file movement is intentionally left for Issue #10.
+If one file fails during processing, the worker catches the error and continues with the remaining files and future scans.
+
+## Processed and Error File Handling
+
+After processing a file, the worker moves it out of the incoming folder:
+
+```text
+Successful import -> Files/Processed
+Failed import     -> Files/Error
+```
+
+The destination folders are created when needed. If a file with the same name already exists in the destination folder, the worker adds a numeric suffix instead of overwriting it.
+
+If file movement fails, the error is handled safely and the worker continues processing later files.
 
 ## Run The Backend
 
@@ -253,8 +268,16 @@ Completed in Issue #9:
 - Kept the worker running when one file fails during processing.
 - Added focused unit tests for scanning, supported file detection, and error continuation.
 
+Completed in Issue #10:
+
+- Moved successfully processed files to the processed folder.
+- Moved failed files to the error folder.
+- Created destination folders when needed.
+- Avoided overwriting existing destination files by adding numeric suffixes.
+- Handled file movement errors safely so the worker keeps running.
+- Added focused unit tests for processed moves, error moves, name collisions, and move failures.
+
 Not included yet:
 
-- Processed and error file movement
 - Import history tracking
 - REST endpoints for uploads, imports, or dashboard data
