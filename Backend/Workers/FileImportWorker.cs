@@ -32,10 +32,23 @@ public class FileImportWorker : BackgroundService
         var incomingFolder = ResolveIncomingFolder();
         Directory.CreateDirectory(incomingFolder);
 
+        _logger.LogDebug("Scanning incoming folder '{IncomingFolder}'.", incomingFolder);
+
         var files = Directory.EnumerateFiles(incomingFolder)
             .Where(IsSupportedFile)
             .OrderBy(filePath => filePath, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+        if (files.Length == 0)
+        {
+            _logger.LogDebug("No supported files found in incoming folder '{IncomingFolder}'.", incomingFolder);
+            return;
+        }
+
+        _logger.LogInformation(
+            "Found {FileCount} supported file(s) in incoming folder '{IncomingFolder}'.",
+            files.Length,
+            incomingFolder);
 
         foreach (var filePath in files)
         {
@@ -43,15 +56,25 @@ public class FileImportWorker : BackgroundService
 
             if (!TryMarkFileForProcessing(filePath))
             {
+                _logger.LogDebug(
+                    "Skipping file '{FileName}' because it has already been attempted and has not changed.",
+                    Path.GetFileName(filePath));
+
                 continue;
             }
 
+            _logger.LogInformation("Detected file '{FileName}' for import.", Path.GetFileName(filePath));
             await ProcessFileAsync(filePath, cancellationToken);
         }
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        _logger.LogInformation(
+            "File import worker started. Incoming folder: '{IncomingFolder}'. Scan interval: {ScanIntervalSeconds} second(s).",
+            ResolveIncomingFolder(),
+            GetScanInterval().TotalSeconds);
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
@@ -76,6 +99,8 @@ public class FileImportWorker : BackgroundService
                 break;
             }
         }
+
+        _logger.LogInformation("File import worker stopped.");
     }
 
     private async Task ProcessFileAsync(string filePath, CancellationToken cancellationToken)
@@ -130,9 +155,10 @@ public class FileImportWorker : BackgroundService
             File.Move(filePath, destinationPath);
 
             _logger.LogInformation(
-                "Moved file '{FileName}' to {DestinationName} folder.",
+                "Moved file '{FileName}' to {DestinationName} folder at '{DestinationPath}'.",
                 Path.GetFileName(filePath),
-                destinationName);
+                destinationName,
+                destinationPath);
         }
         catch (Exception ex)
         {

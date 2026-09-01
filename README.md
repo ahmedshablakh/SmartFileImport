@@ -43,7 +43,8 @@ SmartFileImport/
 |   |-- EmployeeValidatorTests.cs
 |   |-- ExcelFileReaderTests.cs
 |   |-- FileImportServiceTests.cs
-|   `-- FileImportWorkerTests.cs
+|   |-- FileImportWorkerTests.cs
+|   `-- TestLogger.cs
 |-- Frontend/
 |   |-- src/
 |   |-- index.html
@@ -171,6 +172,18 @@ The destination folders are created when needed. If a file with the same name al
 
 If file movement fails, the error is handled safely and the worker continues processing later files.
 
+## Logging and Exception Handling
+
+The import workflow uses `ILogger` to log important processing steps:
+
+- Worker startup, scans, detected files, and shutdown.
+- File type detection and row counts during import.
+- Validation failures with clear validation messages.
+- Successful database saves and file moves.
+- Import, scan, and file movement exceptions.
+
+`FileImportService` logs import failures and rethrows them. `FileImportWorker` catches per-file exceptions, moves failed files to the error folder when possible, and continues processing the next file.
+
 ## Run The Backend
 
 ```powershell
@@ -276,6 +289,15 @@ Completed in Issue #10:
 - Avoided overwriting existing destination files by adding numeric suffixes.
 - Handled file movement errors safely so the worker keeps running.
 - Added focused unit tests for processed moves, error moves, name collisions, and move failures.
+
+Completed in Issue #11:
+
+- Added structured logging to the file import service.
+- Logged worker startup, scans, detected files, skipped files, and shutdown.
+- Logged file type detection, row counts, validation failures, saves, and successful imports.
+- Logged import, scan, and file movement exceptions with useful file context.
+- Kept per-file exception handling in the worker so one failed file does not stop later files.
+- Added focused test logging assertions for validation and import failure paths.
 
 Not included yet:
 

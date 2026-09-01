@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using SmartFileImport.Api.Configuration;
@@ -53,12 +54,13 @@ public sealed class FileImportWorkerTests : IDisposable
         var secondPath = WriteFile(incomingFolder, "second.csv");
         var processedFolder = GetProcessedFolder();
         var errorFolder = GetErrorFolder();
+        var logger = new TestLogger<FileImportWorker>();
         var importService = new FakeFileImportService
         {
             FileNameToThrow = "first.csv"
         };
         using var serviceProvider = CreateServiceProvider(importService);
-        var worker = CreateWorker(serviceProvider, incomingFolder);
+        var worker = CreateWorker(serviceProvider, incomingFolder, logger: logger);
 
         await worker.ProcessPendingFilesAsync();
 
@@ -69,6 +71,15 @@ public sealed class FileImportWorkerTests : IDisposable
         Assert.False(File.Exists(secondPath));
         Assert.True(File.Exists(Path.Combine(errorFolder, "first.csv")));
         Assert.True(File.Exists(Path.Combine(processedFolder, "second.csv")));
+        Assert.Contains(
+            logger.Entries,
+            entry => entry.LogLevel == LogLevel.Error
+                && entry.Exception is InvalidOperationException
+                && entry.Message.Contains("Failed to process file 'first.csv'"));
+        Assert.Contains(
+            logger.Entries,
+            entry => entry.LogLevel == LogLevel.Information
+                && entry.Message.Contains("Detected file 'second.csv' for import."));
     }
 
     [Fact]
@@ -182,7 +193,8 @@ public sealed class FileImportWorkerTests : IDisposable
         IServiceProvider serviceProvider,
         string incomingFolder,
         string? processedFolder = null,
-        string? errorFolder = null)
+        string? errorFolder = null,
+        ILogger<FileImportWorker>? logger = null)
     {
         return new FileImportWorker(
             serviceProvider.GetRequiredService<IServiceScopeFactory>(),
@@ -193,7 +205,7 @@ public sealed class FileImportWorkerTests : IDisposable
                 ErrorFolder = errorFolder ?? GetErrorFolder(),
                 ScanIntervalSeconds = 1
             }),
-            NullLogger<FileImportWorker>.Instance);
+            logger ?? NullLogger<FileImportWorker>.Instance);
     }
 
     private static string WriteFile(string folder, string fileName, string contents = "test")
