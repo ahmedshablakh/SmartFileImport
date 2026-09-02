@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using SmartFileImport.Api.Controllers;
 using SmartFileImport.Api.Data;
 using SmartFileImport.Api.Models;
@@ -29,7 +30,7 @@ public class ImportsControllerTests
         };
         dbContext.ImportHistories.AddRange(olderImport, newerImport);
         await dbContext.SaveChangesAsync();
-        var controller = new ImportsController(dbContext);
+        var controller = new ImportsController(dbContext, NullLogger<ImportsController>.Instance);
 
         var result = await controller.Get();
 
@@ -71,7 +72,7 @@ public class ImportsControllerTests
         };
         dbContext.ImportHistories.Add(failedImport);
         await dbContext.SaveChangesAsync();
-        var controller = new ImportsController(dbContext);
+        var controller = new ImportsController(dbContext, NullLogger<ImportsController>.Instance);
 
         var result = await controller.GetById(failedImport.Id);
 
@@ -89,7 +90,7 @@ public class ImportsControllerTests
     public async Task GetById_WhenImportHistoryDoesNotExist_ReturnsNotFound()
     {
         await using var dbContext = CreateDbContext();
-        var controller = new ImportsController(dbContext);
+        var controller = new ImportsController(dbContext, NullLogger<ImportsController>.Instance);
 
         var result = await controller.GetById(123);
 

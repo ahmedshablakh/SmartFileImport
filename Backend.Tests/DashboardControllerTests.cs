@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using SmartFileImport.Api.Controllers;
 using SmartFileImport.Api.Data;
 using SmartFileImport.Api.Models;
@@ -36,7 +37,7 @@ public class DashboardControllerTests
                 ErrorMessage = "Record 1: Name is required."
             });
         await dbContext.SaveChangesAsync();
-        var controller = new DashboardController(dbContext);
+        var controller = new DashboardController(dbContext, NullLogger<DashboardController>.Instance);
 
         var result = await controller.Get();
 
@@ -52,7 +53,7 @@ public class DashboardControllerTests
     public async Task Get_WhenNoImportHistoryExists_ReturnsZeroStatistics()
     {
         await using var dbContext = CreateDbContext();
-        var controller = new DashboardController(dbContext);
+        var controller = new DashboardController(dbContext, NullLogger<DashboardController>.Instance);
 
         var result = await controller.Get();
 

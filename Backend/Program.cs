@@ -12,11 +12,28 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found.");
+var databaseProvider = builder.Configuration.GetValue<string>("Database:Provider") ?? "SqlServer";
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+if (string.Equals(databaseProvider, "InMemory", StringComparison.OrdinalIgnoreCase))
+{
+    var databaseName = builder.Configuration.GetValue<string>("Database:Name") ?? "SmartFileImport";
+
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseInMemoryDatabase(databaseName));
+}
+else if (string.Equals(databaseProvider, "SqlServer", StringComparison.OrdinalIgnoreCase))
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found.");
+
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseSqlServer(connectionString));
+}
+else
+{
+    throw new InvalidOperationException(
+        $"Unsupported database provider '{databaseProvider}'. Use 'SqlServer' or 'InMemory'.");
+}
 
 builder.Services.AddCors(options =>
 {
@@ -41,7 +58,30 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
+if (builder.Configuration.GetValue("Database:ApplyMigrationsOnStartup", false)
+    && string.Equals(databaseProvider, "SqlServer", StringComparison.OrdinalIgnoreCase))
+{
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+    await dbContext.Database.MigrateAsync();
+}
+
 app.UseCors(FrontendCorsPolicy);
+
+app.MapGet("/", () => Results.Ok(new
+{
+    service = "Smart File Import API",
+    status = "Running",
+    frontend = "http://localhost:5173",
+    endpoints = new
+    {
+        health = "/api/health",
+        upload = "/api/files/upload",
+        imports = "/api/imports",
+        dashboard = "/api/dashboard"
+    }
+}));
 
 app.MapControllers();
 

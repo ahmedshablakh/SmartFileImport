@@ -1,30 +1,84 @@
 # Smart File Import Service
 
-Smart File Import Service is a small backend and frontend project for managing CSV and Excel file imports.
+Smart File Import Service is a small full-stack application for importing employee data from CSV and Excel files.
 
-This repository is being built one issue at a time. The current completed scope is listed below.
+Users upload a `.csv` or `.xlsx` file from the React frontend. The backend saves the file into an incoming folder, a background worker processes it, valid employees are stored in SQL Server, and every import attempt is recorded in import history.
 
-## Technologies
+## Features
+
+- Upload employee files from a web UI.
+- Support CSV and XLSX formats.
+- Queue uploaded files for background processing.
+- Read employee rows from CSV files.
+- Read employee rows from the first worksheet of Excel files.
+- Validate required employee fields before saving.
+- Store valid employees in SQL Server with Entity Framework Core.
+- Record successful and failed imports.
+- Move successful files to `Files/Processed`.
+- Move failed files to `Files/Error`.
+- Avoid overwriting moved files by adding numeric suffixes.
+- Expose import history and dashboard API endpoints.
+- Show upload, dashboard, history, and import details in the frontend.
+- Refresh dashboard and history automatically after upload.
+- Support light mode and dark mode in the frontend.
+- Include unit and workflow tests for the backend.
+
+## Technologies Used
 
 - Backend: .NET 8, ASP.NET Core Web API
-- Frontend: React, TypeScript, Vite
-- Data layer: Entity Framework Core with SQL Server
-- Excel processing: ClosedXML
+- Database: SQL Server / SQL Server Express
+- Data access: Entity Framework Core
+- Excel reader: ClosedXML
+- Frontend: React 18, TypeScript, Vite
+- Testing: xUnit, EF Core InMemory provider
+
+## Architecture
+
+```text
+React frontend
+    |
+    | HTTP requests
+    v
+ASP.NET Core API
+    |
+    | saves uploaded files
+    v
+Files/Incoming
+    |
+    | scanned by FileImportWorker
+    v
+FileImportService
+    |
+    | reads CSV/XLSX, validates rows
+    v
+Entity Framework Core
+    |
+    v
+SQL Server
+```
+
+The frontend does not process files directly. It only uploads files and displays the latest dashboard and history data from the API.
+
+The backend has two main responsibilities:
+
+- Accept uploads and save them into the configured incoming folder.
+- Process queued files in the background and update the database.
 
 ## Project Structure
 
 ```text
 SmartFileImport/
 |-- Backend/
+|   |-- Configuration/
+|   |   `-- FileProcessingOptions.cs
 |   |-- Controllers/
 |   |   |-- DashboardController.cs
 |   |   |-- FilesController.cs
 |   |   |-- HealthController.cs
 |   |   `-- ImportsController.cs
 |   |-- Data/
+|   |   |-- Migrations/
 |   |   `-- ApplicationDbContext.cs
-|   |-- Configuration/
-|   |   `-- FileProcessingOptions.cs
 |   |-- Models/
 |   |   |-- Employee.cs
 |   |   `-- ImportHistory.cs
@@ -32,284 +86,397 @@ SmartFileImport/
 |   |   |-- CsvFileReader.cs
 |   |   |-- EmployeeValidator.cs
 |   |   |-- ExcelFileReader.cs
-|   |   |-- FileImportResult.cs
 |   |   |-- FileImportService.cs
+|   |   |-- FileImportResult.cs
 |   |   |-- ICsvFileReader.cs
 |   |   |-- IEmployeeValidator.cs
-|   |   |-- IFileImportService.cs
-|   |   `-- IExcelFileReader.cs
+|   |   |-- IExcelFileReader.cs
+|   |   `-- IFileImportService.cs
 |   |-- Workers/
 |   |   `-- FileImportWorker.cs
+|   |-- appsettings.json
+|   |-- appsettings.Development.json
 |   |-- Program.cs
 |   `-- SmartFileImport.Api.csproj
 |-- Backend.Tests/
-|   |-- CsvFileReaderTests.cs
-|   |-- DashboardControllerTests.cs
-|   |-- EmployeeValidatorTests.cs
-|   |-- ExcelFileReaderTests.cs
-|   |-- FileImportServiceTests.cs
-|   |-- FileImportWorkflowTests.cs
-|   |-- FileImportWorkerTests.cs
-|   |-- FilesControllerTests.cs
-|   |-- ImportsControllerTests.cs
-|   `-- TestLogger.cs
-|-- Frontend/
-|   |-- src/
-|   |-- index.html
-|   |-- package.json
-|   `-- vite.config.ts
 |-- Files/
 |   |-- Incoming/
 |   |-- Processed/
 |   `-- Error/
+|-- Frontend/
+|   |-- src/
+|   |   |-- App.css
+|   |   |-- App.tsx
+|   |   `-- main.tsx
+|   |-- index.html
+|   |-- package.json
+|   `-- vite.config.ts
 |-- SmartFileImport.sln
 `-- README.md
 ```
 
-## File Processing Folders
+## Folder Structure
 
-The import folders are created at the repository root:
+The file import folders live at the repository root:
 
-- `Files/Incoming`
-- `Files/Processed`
-- `Files/Error`
-
-The matching configuration lives in `Backend/appsettings.json`.
-
-## File Upload API
-
-Upload a CSV or Excel file:
-
-```http
-POST /api/files/upload
+```text
+Files/Incoming
+Files/Processed
+Files/Error
 ```
 
-The request must use `multipart/form-data` with a form field named `file`.
-
-Supported upload extensions are `.csv` and `.xlsx`. Valid uploads are saved to the configured incoming folder and return `202 Accepted` so background processing can handle the file later.
-
-Unsupported, empty, or missing files return `400 Bad Request`.
-
-## Frontend Upload UI
-
-The upload screen lets a user select a `.csv` or `.xlsx` employee import file and send it to the backend upload API.
-
-By default, the frontend calls the backend at `http://localhost:5107`.
-
-Override the API base URL when needed:
-
-```powershell
-$env:VITE_API_BASE_URL = "http://localhost:5107"
-npm run dev
-```
-
-## Frontend Import History UI
-
-The history screen loads import records from the backend, displays them in a table, and shows details for the selected import.
-
-The table displays:
-
-- File name
-- Status
-- Record count
-- Processed date
-
-The details panel displays the selected import's error message when one exists.
-
-## Database Configuration
-
-The backend is configured for SQL Server through Entity Framework Core.
-
-The default connection string is stored in `Backend/appsettings.json`:
+The backend uses this configuration in `Backend/appsettings.json`:
 
 ```json
-"ConnectionStrings": {
-  "DefaultConnection": "Server=(localdb)\\MSSQLLocalDB;Database=SmartFileImportDb;Trusted_Connection=True;TrustServerCertificate=True"
+"FileProcessing": {
+  "InputFolder": "../Files/Incoming",
+  "ProcessedFolder": "../Files/Processed",
+  "ErrorFolder": "../Files/Error",
+  "ScanIntervalSeconds": 5
 }
 ```
 
-The `Employee` and `ImportHistory` entities are registered in `ApplicationDbContext`.
+Folder usage:
 
-The initial migration is stored in `Backend/Data/Migrations`.
+- `Files/Incoming`: uploaded files waiting for processing.
+- `Files/Processed`: files that were imported successfully.
+- `Files/Error`: files that failed validation, parsing, saving, or processing.
 
-Apply migrations:
+## Supported File Formats
 
-```powershell
-dotnet ef database update --project Backend/SmartFileImport.Api.csproj --startup-project Backend/SmartFileImport.Api.csproj
+The application supports:
+
+- `.csv`
+- `.xlsx`
+
+Both file types must contain employee data with these columns:
+
+```text
+Name
+Email
+Department
+Salary
 ```
 
-Verify tables:
+Validation rules:
 
-```powershell
-sqlcmd -S "(localdb)\MSSQLLocalDB" -d SmartFileImportDb -Q "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME"
-```
+- `Name` is required.
+- `Email` is required and must be a valid email address.
+- `Department` is required.
+- `Salary` must be a number greater than zero.
 
-## CSV Format
+Invalid files are not inserted into the `Employees` table. Failed imports are recorded in `ImportHistories`.
 
-CSV files must include these headers:
+## Example CSV Format
 
 ```csv
 Name,Email,Department,Salary
 Ahmed Shablakh,ahmed@example.com,Engineering,4500.50
+Sara Ali,sara@example.com,Finance,3900
 ```
 
-The CSV reader maps rows to `Employee` objects. Employee validation is handled by the data validation service.
+## Example Excel Format
 
-## Excel Format
-
-Excel files must use `.xlsx` and include these headers in the first worksheet:
+The first worksheet should contain the same headers in the first row:
 
 ```text
 Name | Email | Department | Salary
 ```
 
-The Excel reader maps rows from the first worksheet to `Employee` objects. Employee validation is handled by the data validation service.
+Employee rows should start from the second row.
 
-## Data Validation
+## Database Configuration
 
-Imported employees are validated with these rules:
+The backend uses SQL Server through Entity Framework Core.
 
-- Name is required.
-- Email must have a valid format.
-- Department is required.
-- Salary must be greater than zero.
+Current connection string in `Backend/appsettings.json`:
 
-The validator returns all detected errors with record numbers.
-
-## File Import Service
-
-The file import service runs the reusable import workflow:
-
-```text
-File
-|-- Check file type
-|-- Read CSV or Excel data
-|-- Validate employees
-`-- Save valid employees with EF Core
+```json
+"ConnectionStrings": {
+  "DefaultConnection": "Server=localhost\\SQLEXPRESS01;Database=SmartFileImportDb;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=False;"
+}
 ```
 
-Supported import extensions are `.csv` and `.xlsx`.
+This configuration uses:
 
-If validation fails, the service returns clear validation errors and does not insert any employees.
+- SQL Server instance: `localhost\SQLEXPRESS01`
+- Database name: `SmartFileImportDb`
+- Authentication: Windows Authentication
 
-## Import History Tracking
+If your SQL Server instance has a different name, update `DefaultConnection`.
 
-Every file import attempt creates an `ImportHistory` record.
+Examples:
 
-Successful imports store:
+```json
+"Server=MYPC;Database=SmartFileImportDb;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=False;"
+```
 
-- File name
-- `Status = Success`
-- Record count
-- Processed timestamp
+```json
+"Server=(localdb)\\MSSQLLocalDB;Database=SmartFileImportDb;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=False;"
+```
 
-Failed imports store:
+The backend also supports this configuration key:
 
-- File name
-- `Status = Failed`
-- Error message
-- Processed timestamp
+```json
+"Database": {
+  "Provider": "SqlServer",
+  "ApplyMigrationsOnStartup": true
+}
+```
 
-## Import History API
+`Provider` can be:
 
-Get import history:
+- `SqlServer` for the real application.
+- `InMemory` for tests or temporary local experiments.
+
+In development, migrations are applied automatically on startup when `ApplyMigrationsOnStartup` is `true` and the provider is `SqlServer`.
+
+## Database Tables
+
+The database contains two main tables:
+
+### Employees
+
+Stores valid imported employees.
+
+Columns:
+
+- `Id`
+- `Name`
+- `Email`
+- `Department`
+- `Salary`
+- `CreatedAt`
+
+### ImportHistories
+
+Stores every import attempt.
+
+Columns:
+
+- `Id`
+- `FileName`
+- `Status`
+- `RecordCount`
+- `ProcessedAt`
+- `ErrorMessage`
+
+`Status` is usually:
+
+- `Success`
+- `Failed`
+
+## Database Migration Instructions
+
+Install the EF Core CLI tool if needed:
+
+```powershell
+dotnet tool install --global dotnet-ef
+```
+
+Restore packages:
+
+```powershell
+dotnet restore SmartFileImport.sln
+```
+
+Apply the existing migration:
+
+```powershell
+dotnet ef database update --project Backend/SmartFileImport.Api.csproj --startup-project Backend/SmartFileImport.Api.csproj
+```
+
+Add a new migration only when the EF Core model changes:
+
+```powershell
+dotnet ef migrations add MigrationName --project Backend/SmartFileImport.Api.csproj --startup-project Backend/SmartFileImport.Api.csproj --output-dir Data/Migrations
+```
+
+## API Endpoints
+
+Default backend URL:
+
+```text
+http://localhost:5107
+```
+
+Opening this URL in the browser returns a small API status response with the main endpoint paths.
+
+### API Status
+
+```http
+GET /
+```
+
+Returns the API name, running status, frontend URL, and common endpoint paths.
+
+### Health Check
+
+```http
+GET /api/health
+```
+
+Returns a simple response that confirms the API is running.
+
+### Upload File
+
+```http
+POST /api/files/upload
+```
+
+Request type:
+
+```text
+multipart/form-data
+```
+
+Required form field:
+
+```text
+file
+```
+
+Successful uploads return `202 Accepted`:
+
+```json
+{
+  "fileName": "employees.csv",
+  "message": "File uploaded successfully and queued for background processing."
+}
+```
+
+Possible validation errors return `400 Bad Request`, for example:
+
+```json
+{
+  "error": "Only .csv and .xlsx files are supported."
+}
+```
+
+### Import History
 
 ```http
 GET /api/imports
 ```
 
-Get one import history record:
+Returns all import history records, newest first.
+
+```json
+[
+  {
+    "id": 1,
+    "fileName": "employees.csv",
+    "status": "Success",
+    "recordCount": 2,
+    "processedAt": "2026-09-02T07:10:00Z",
+    "errorMessage": null
+  }
+]
+```
+
+### Import Details
 
 ```http
 GET /api/imports/{id}
 ```
 
-Each response item includes:
+Returns one import history record.
 
-- `id`
-- `fileName`
-- `status`
-- `recordCount`
-- `processedAt`
-- `errorMessage`
+If the record does not exist, the API returns `404 Not Found`.
 
-Missing import history records return `404 Not Found`.
-
-## Dashboard API
-
-Get dashboard statistics:
+### Dashboard Statistics
 
 ```http
 GET /api/dashboard
 ```
 
-The response is calculated from `ImportHistory` records:
+Returns import summary statistics:
 
 ```json
 {
   "totalFiles": 3,
   "successfulFiles": 2,
   "failedFiles": 1,
-  "totalImportedRecords": 5
+  "totalImportedRecords": 30
 }
 ```
 
-The backend allows the local frontend dev server at `http://localhost:5173` and `https://localhost:5173` to call API endpoints.
+## Backend Setup
 
-## Background Processing
+Prerequisites:
 
-The backend registers `FileImportWorker` as a hosted background service.
+- .NET 8 SDK
+- SQL Server, SQL Server Express, or LocalDB
+- A working connection string in `Backend/appsettings.json`
 
-The worker uses the `FileProcessing` configuration in `Backend/appsettings.json`:
-
-- `InputFolder`
-- `ProcessedFolder`
-- `ErrorFolder`
-- `ScanIntervalSeconds`
-
-On each scan, the worker checks the incoming folder, detects `.csv` and `.xlsx` files, and sends supported files to `IFileImportService`.
-
-If one file fails during processing, the worker catches the error and continues with the remaining files and future scans.
-
-## Processed and Error File Handling
-
-After processing a file, the worker moves it out of the incoming folder:
-
-```text
-Successful import -> Files/Processed
-Failed import     -> Files/Error
-```
-
-The destination folders are created when needed. If a file with the same name already exists in the destination folder, the worker adds a numeric suffix instead of overwriting it.
-
-If file movement fails, the error is handled safely and the worker continues processing later files.
-
-## Logging and Exception Handling
-
-The import workflow uses `ILogger` to log important processing steps:
-
-- Worker startup, scans, detected files, and shutdown.
-- File type detection and row counts during import.
-- Validation failures with clear validation messages.
-- Successful database saves and file moves.
-- Import, scan, and file movement exceptions.
-
-`FileImportService` logs import failures and rethrows them. `FileImportWorker` catches per-file exceptions, moves failed files to the error folder when possible, and continues processing the next file.
-
-## Run The Backend
+Restore and build:
 
 ```powershell
 dotnet restore SmartFileImport.sln
-dotnet run --project Backend/SmartFileImport.Api.csproj
+dotnet build SmartFileImport.sln
 ```
 
-Health check:
+Run the backend:
 
-```http
-GET /api/health
+```powershell
+dotnet run --project Backend/SmartFileImport.Api.csproj --launch-profile http
 ```
 
-## Run The Frontend
+The API should run at:
+
+```text
+http://localhost:5107
+```
+
+## Frontend Setup
+
+Prerequisites:
+
+- Node.js
+- npm
+
+Install packages:
+
+```powershell
+cd Frontend
+npm install
+```
+
+Run the frontend:
+
+```powershell
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:5173
+```
+
+By default, the frontend calls:
+
+```text
+http://localhost:5107
+```
+
+To change the API URL for the current PowerShell session:
+
+```powershell
+$env:VITE_API_BASE_URL = "http://localhost:5107"
+npm run dev
+```
+
+## How To Run The Application
+
+### Option 1: Visual Studio 2022 plus Terminal
+
+1. Open `SmartFileImport.sln` in Visual Studio 2022.
+2. Set `Backend` as the startup project.
+3. Select the `http` launch profile.
+4. Start the backend with `F5` or `Ctrl+F5`.
+5. Open `View > Terminal`.
+6. Run the frontend:
 
 ```powershell
 cd Frontend
@@ -317,165 +484,105 @@ npm install
 npm run dev
 ```
 
+7. Open `http://localhost:5173`.
+
+### Option 2: Command Line Only
+
+Terminal 1:
+
+```powershell
+dotnet run --project Backend/SmartFileImport.Api.csproj --launch-profile http
+```
+
+Terminal 2:
+
+```powershell
+cd Frontend
+npm install
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:5173
+```
+
+## How Background Processing Works
+
+1. The user uploads a `.csv` or `.xlsx` file from the frontend.
+2. `POST /api/files/upload` saves the file into `Files/Incoming`.
+3. The API returns `202 Accepted`.
+4. `FileImportWorker` scans the incoming folder every `ScanIntervalSeconds`.
+5. The worker sends supported files to `IFileImportService`.
+6. `FileImportService` selects the correct reader based on the file extension.
+7. The reader maps rows to `Employee` objects.
+8. `EmployeeValidator` validates all rows.
+9. If the file is valid, employees are inserted into SQL Server.
+10. An `ImportHistory` record is created.
+11. Successful files are moved to `Files/Processed`.
+12. Failed files are moved to `Files/Error`.
+13. The frontend automatically refreshes dashboard and history after upload.
+
+If one file fails, the worker logs the error and continues processing other files.
+
+## Frontend Behavior
+
+The frontend includes:
+
+- File upload area.
+- Required file structure guidance.
+- Dashboard cards for total, successful, failed, and imported records.
+- Import history table.
+- Import details panel.
+- Manual refresh button.
+- Automatic refresh after upload.
+- Light and dark mode toggle.
+
 ## Run Tests
+
+Run backend tests:
 
 ```powershell
 dotnet test SmartFileImport.sln
 ```
 
-## Workflow Test Coverage
+Build the frontend:
 
-The test suite includes workflow coverage for:
+```powershell
+npm --prefix Frontend run build
+```
 
-- Valid CSV imports.
-- Valid Excel imports.
-- Empty files.
-- Invalid employee data.
-- Unsupported file types.
-- Database save errors.
-- File movement errors.
-- Worker continuation after per-file failures.
+## Troubleshooting
 
-## Current Scope
+### The frontend says it cannot reach the API
 
-Completed in Issue #1:
+Make sure the backend is running at:
 
-- Created the backend project.
-- Created the frontend project.
-- Created the base folder structure.
-- Added `.gitignore`.
-- Added initial setup documentation.
+```text
+http://localhost:5107
+```
 
-Completed in Issue #2:
+If the backend uses a different port, set `VITE_API_BASE_URL` before running the frontend.
 
-- Added Entity Framework Core SQL Server packages.
-- Created `ApplicationDbContext`.
-- Added the SQL Server connection string.
-- Registered the DbContext in the backend dependency injection container.
+### Import history or dashboard cannot load
 
-Completed in Issue #3:
+Check the SQL Server connection string in `Backend/appsettings.json`.
 
-- Created the `Employee` entity.
-- Created the `ImportHistory` entity.
-- Added `DbSet` properties to `ApplicationDbContext`.
-- Configured table names, required fields, string lengths, and salary precision.
+Make sure the SQL Server instance exists and the Windows user running the backend has permission to create and use `SmartFileImportDb`.
 
-Completed in Issue #4:
+### Uploaded file does not appear immediately
 
-- Created the initial EF Core migration.
-- Applied the migration to SQL Server LocalDB.
-- Verified that the required database tables exist.
+The upload API only queues the file. The background worker processes it on the next scan. The default scan interval is 5 seconds.
 
-Completed in Issue #5:
+### Files are not in the expected folders
 
-- Created the CSV file reader service.
-- Mapped CSV columns to `Employee` properties.
-- Added clear errors for missing headers, invalid salaries, unsupported extensions, and malformed CSV rows.
-- Added focused unit tests for CSV parsing behavior.
+Check the `FileProcessing` section in `Backend/appsettings.json`.
 
-Completed in Issue #6:
+The intended runtime folders are:
 
-- Added ClosedXML for `.xlsx` file support.
-- Created the Excel file reader service.
-- Mapped worksheet columns to `Employee` properties.
-- Added clear errors for missing headers, invalid salaries, unsupported extensions, and unreadable Excel files.
-- Added focused unit tests for Excel parsing behavior.
-
-Completed in Issue #7:
-
-- Created the employee validation service.
-- Added validation rules for name, email, department, and salary.
-- Registered the validator in the backend dependency injection container.
-- Added focused unit tests for validation behavior.
-
-Completed in Issue #8:
-
-- Created the reusable file import service.
-- Added CSV and Excel reader selection by file extension.
-- Validated imported employees before database insertion.
-- Saved valid employees with Entity Framework Core.
-- Registered the file import service in the backend dependency injection container.
-- Added focused unit tests for import success, validation failure, and unsupported file types.
-
-Completed in Issue #9:
-
-- Created `FileImportWorker` as an ASP.NET Core hosted background service.
-- Added periodic scanning using `FileProcessing:ScanIntervalSeconds`.
-- Scanned the configured incoming folder for supported `.csv` and `.xlsx` files.
-- Sent detected files to `IFileImportService`.
-- Kept the worker running when one file fails during processing.
-- Added focused unit tests for scanning, supported file detection, and error continuation.
-
-Completed in Issue #10:
-
-- Moved successfully processed files to the processed folder.
-- Moved failed files to the error folder.
-- Created destination folders when needed.
-- Avoided overwriting existing destination files by adding numeric suffixes.
-- Handled file movement errors safely so the worker keeps running.
-- Added focused unit tests for processed moves, error moves, name collisions, and move failures.
-
-Completed in Issue #11:
-
-- Added structured logging to the file import service.
-- Logged worker startup, scans, detected files, skipped files, and shutdown.
-- Logged file type detection, row counts, validation failures, saves, and successful imports.
-- Logged import, scan, and file movement exceptions with useful file context.
-- Kept per-file exception handling in the worker so one failed file does not stop later files.
-- Added focused test logging assertions for validation and import failure paths.
-
-Completed in Issue #12:
-
-- Recorded successful import attempts in `ImportHistory`.
-- Recorded failed import attempts in `ImportHistory`.
-- Stored failed import error messages.
-- Stored successful import record counts.
-- Added focused test assertions for successful and failed history records.
-
-Completed in Issue #13:
-
-- Added `POST /api/files/upload`.
-- Accepted `.csv` and `.xlsx` uploads.
-- Rejected unsupported, empty, and missing uploads.
-- Saved uploaded files to the configured incoming folder.
-- Kept actual file processing in the background worker.
-- Added focused controller tests for upload success, rejection, and duplicate file names.
-
-Completed in Issue #15:
-
-- Added `GET /api/dashboard`.
-- Calculated total files from import history records.
-- Calculated successful and failed file counts.
-- Calculated total imported records from successful imports.
-- Enabled local frontend CORS access for API endpoints.
-- Added focused dashboard controller tests for populated and empty databases.
-
-Completed in Issue #17:
-
-- Replaced the placeholder frontend screen with a file upload workspace.
-- Added CSV and XLSX file selection.
-- Connected the upload form to `POST /api/files/upload`.
-- Displayed upload success and error messages from the API.
-- Added local API base URL configuration through `VITE_API_BASE_URL`.
-
-Completed in Issue #18:
-
-- Added `GET /api/imports`.
-- Added `GET /api/imports/{id}`.
-- Returned import history file name, status, record count, processed date, and error message.
-- Added a frontend import history table.
-- Added a frontend import details panel.
-- Added focused import history controller tests.
-
-Completed in Issue #19:
-
-- Added workflow-level tests for valid CSV and Excel imports.
-- Verified valid files insert employees, record successful import history, and move to the processed folder.
-- Verified empty and invalid files do not insert employees, record failed import history, and move to the error folder.
-- Verified unsupported file types record failed import history through the import service.
-- Verified database save errors are logged and the worker continues with remaining files.
-- Verified file movement errors are logged without stopping later files.
-
-Not included yet:
-
-- Frontend dashboard UI
+```text
+Files/Incoming
+Files/Processed
+Files/Error
+```
