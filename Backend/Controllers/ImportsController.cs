@@ -9,30 +9,45 @@ namespace SmartFileImport.Api.Controllers;
 public class ImportsController : ControllerBase
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly ILogger<ImportsController> _logger;
 
-    public ImportsController(ApplicationDbContext dbContext)
+    public ImportsController(ApplicationDbContext dbContext, ILogger<ImportsController> logger)
     {
         _dbContext = dbContext;
+        _logger = logger;
     }
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ImportHistoryResponse>>> Get(
         CancellationToken cancellationToken = default)
     {
-        var imports = await _dbContext.ImportHistories
-            .AsNoTracking()
-            .OrderByDescending(importHistory => importHistory.ProcessedAt)
-            .ThenByDescending(importHistory => importHistory.Id)
-            .Select(importHistory => new ImportHistoryResponse(
-                importHistory.Id,
-                importHistory.FileName,
-                importHistory.Status,
-                importHistory.RecordCount,
-                importHistory.ProcessedAt,
-                importHistory.ErrorMessage))
-            .ToListAsync(cancellationToken);
+        try
+        {
+            var imports = await _dbContext.ImportHistories
+                .AsNoTracking()
+                .OrderByDescending(importHistory => importHistory.ProcessedAt)
+                .ThenByDescending(importHistory => importHistory.Id)
+                .Select(importHistory => new ImportHistoryResponse(
+                    importHistory.Id,
+                    importHistory.FileName,
+                    importHistory.Status,
+                    importHistory.RecordCount,
+                    importHistory.ProcessedAt,
+                    importHistory.ErrorMessage))
+                .ToListAsync(cancellationToken);
 
-        return Ok(imports);
+            return Ok(imports);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load import history.");
+
+            return StatusCode(500, new ImportHistoryErrorResponse("Import history could not be loaded."));
+        }
     }
 
     [HttpGet("{id:int}")]
@@ -40,24 +55,37 @@ public class ImportsController : ControllerBase
         int id,
         CancellationToken cancellationToken = default)
     {
-        var import = await _dbContext.ImportHistories
-            .AsNoTracking()
-            .Where(importHistory => importHistory.Id == id)
-            .Select(importHistory => new ImportHistoryResponse(
-                importHistory.Id,
-                importHistory.FileName,
-                importHistory.Status,
-                importHistory.RecordCount,
-                importHistory.ProcessedAt,
-                importHistory.ErrorMessage))
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (import is null)
+        try
         {
-            return NotFound(new ImportHistoryErrorResponse("Import history record was not found."));
-        }
+            var import = await _dbContext.ImportHistories
+                .AsNoTracking()
+                .Where(importHistory => importHistory.Id == id)
+                .Select(importHistory => new ImportHistoryResponse(
+                    importHistory.Id,
+                    importHistory.FileName,
+                    importHistory.Status,
+                    importHistory.RecordCount,
+                    importHistory.ProcessedAt,
+                    importHistory.ErrorMessage))
+                .FirstOrDefaultAsync(cancellationToken);
 
-        return Ok(import);
+            if (import is null)
+            {
+                return NotFound(new ImportHistoryErrorResponse("Import history record was not found."));
+            }
+
+            return Ok(import);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load import history record {ImportHistoryId}.", id);
+
+            return StatusCode(500, new ImportHistoryErrorResponse("Import history record could not be loaded."));
+        }
     }
 }
 
